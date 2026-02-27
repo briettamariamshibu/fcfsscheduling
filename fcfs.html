@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CPU Scheduling Simulator</title>
+    <style>
+        body {
+            font-family: Arial;
+            margin: 20px;
+        }
+        input, select, button {
+            margin: 5px;
+        }
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+            padding: 5px;
+        }
+        .gantt {
+            margin-top: 20px;
+            display: flex;
+        }
+        .box {
+            border: 1px solid black;
+            padding: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<h2>CPU Scheduling Simulator</h2>
+
+<h3>Add Process</h3>
+Process ID: <input type="text" id="pid">
+Arrival Time: <input type="number" id="arrival">
+Burst Time: <input type="number" id="burst">
+<button onclick="addProcess()">Add</button>
+
+<h3>Select Algorithm</h3>
+<select id="algorithm">
+    <option value="FCFS">FCFS</option>
+    <option value="SJF">SJF</option>
+</select>
+
+<button onclick="simulate()">Simulate</button>
+
+<h3>Process Table</h3>
+<table id="processTable">
+    <tr>
+        <th>PID</th>
+        <th>Arrival</th>
+        <th>Burst</th>
+        <th>Waiting</th>
+        <th>Turnaround</th>
+    </tr>
+</table>
+
+<h3>Gantt Chart</h3>
+<div class="gantt" id="gantt"></div>
+
+<h3 id="avg"></h3>
+
+<script>
+
+let processes = [];
+
+function addProcess() {
+    let pid = document.getElementById("pid").value;
+    let arrival = parseInt(document.getElementById("arrival").value);
+    let burst = parseInt(document.getElementById("burst").value);
+
+    processes.push({pid, arrival, burst});
+    alert("Process Added!");
+}
+
+function simulate() {
+
+    if (processes.length === 0) {
+        alert("Add processes first!");
+        return;
+    }
+
+    let algo = document.getElementById("algorithm").value;
+
+    // Make a copy so original order is not destroyed
+    let scheduled = [];
+
+    if (algo === "FCFS") {
+        scheduled = [...processes].sort((a,b)=>a.arrival-b.arrival);
+    } 
+    else {
+        // Correct SJF (Non-Preemptive with Arrival Time)
+        let temp = [...processes];
+        let currentTime = 0;
+
+        while (temp.length > 0) {
+
+            // Get arrived processes
+            let available = temp.filter(p => p.arrival <= currentTime);
+
+            // If none arrived, jump time to next arrival
+            if (available.length === 0) {
+                currentTime = Math.min(...temp.map(p => p.arrival));
+                continue;
+            }
+
+            // Select shortest burst
+            available.sort((a,b)=>a.burst-b.burst);
+            let selected = available[0];
+
+            scheduled.push(selected);
+            currentTime += selected.burst;
+
+            // Remove from temp
+            temp = temp.filter(p => p !== selected);
+        }
+    }
+
+    let time = 0;
+    let totalWaiting = 0;
+
+    let table = document.getElementById("processTable");
+    table.innerHTML = `
+        <tr>
+        <th>PID</th>
+        <th>Arrival</th>
+        <th>Burst</th>
+        <th>Waiting</th>
+        <th>Turnaround</th>
+        </tr>`;
+
+    let gantt = document.getElementById("gantt");
+    gantt.innerHTML = "";
+
+    scheduled.forEach(p => {
+
+        if (time < p.arrival) {
+            time = p.arrival;
+        }
+
+        let start = time;
+        let waiting = start - p.arrival;
+        let turnaround = waiting + p.burst;
+        totalWaiting += waiting;
+
+        time += p.burst;
+
+        // Table row
+        table.innerHTML += `
+            <tr>
+                <td>${p.pid}</td>
+                <td>${p.arrival}</td>
+                <td>${p.burst}</td>
+                <td>${waiting}</td>
+                <td>${turnaround}</td>
+            </tr>`;
+
+        // Gantt box
+        let box = document.createElement("div");
+        box.className = "box";
+        box.style.width = (p.burst * 40) + "px";
+        box.innerHTML = p.pid + "<br>" + start + "-" + time;
+        gantt.appendChild(box);
+    });
+
+    let avgWaiting = totalWaiting / scheduled.length;
+    document.getElementById("avg").innerText =
+        "Average Waiting Time: " + avgWaiting.toFixed(2);
+}
+
+</script>
+
+</body>
+</html>
